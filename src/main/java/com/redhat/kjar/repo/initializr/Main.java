@@ -10,9 +10,7 @@ import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import net.lingala.zip4j.ZipFile;
 import net.lingala.zip4j.exception.ZipException;
 import org.apache.commons.io.FileUtils;
@@ -30,20 +28,20 @@ public class Main {
     private static final Logger LOG = LoggerFactory.getLogger(Main.class);
 
     public static void main(String[] args) throws ZipException {
-        
+
         final String artifactName = args[0];
         final String outputFile = args[1];
-        
+
         final AFReleaseIdImpl afReleaseIdImpl = new AFReleaseIdImpl(artifactName);
         ArtifactResolver artifactResolver = ArtifactResolver.getResolverFor(afReleaseIdImpl, false);
         Collection<DependencyDescriptor> allDependecies = artifactResolver.getAllDependecies(DependencyFilter.COMPILE_FILTER);
-        
-        Set<File> repoFiles = new HashSet<>();
-        repoFiles.add(getArtifactRepoPath(new DependencyDescriptor(afReleaseIdImpl)));
+
+        //Set<File> repoFiles = new HashSet<>();
+        //repoFiles.add(getArtifactRepoPath(new DependencyDescriptor(afReleaseIdImpl)));
         File repo = Files.createTempDir();
 
         MavenRepository mavenRepository = MavenRepository.getMavenRepository();
-        
+
         addDependencyToRepo(repo, new DependencyDescriptor(afReleaseIdImpl));
         for (DependencyDescriptor dependencyDescriptor : allDependecies) {
             try {
@@ -57,12 +55,25 @@ public class Main {
         File repoZip = new File(outputFile);
         repoZip.delete();
         ZipFile zipFile = new ZipFile(outputFile);
+        String filetype = ".sha1";
 
         for (File repoDirectory : repo.listFiles()) {
+            deleteFilesInDirectoryEndingWithString(repoDirectory, filetype);
             zipFile.addFolder(repoDirectory);
         }
-
         LOG.info(outputFile + " written");
+    }
+
+    //for each file in the directory, delete the files ending with string s
+    private static void deleteFilesInDirectoryEndingWithString(File dir, String s) {
+        for (File f : dir.listFiles()) {
+            if (f.isDirectory()) {
+                deleteFilesInDirectoryEndingWithString(f, s);
+            } else if (f.getName().endsWith(s)) {
+                LOG.info("deleting... = " + f.getName());
+                f.delete();
+            }
+        }
     }
 
     public static File getArtifactRepoPath(DependencyDescriptor dependencyDescriptor) {
@@ -77,7 +88,8 @@ public class Main {
     private static void addDependencyToRepo(File repo, DependencyDescriptor dependencyDescriptor) {
         String localRepository = MavenSettings.getSettings().getLocalRepository();
         final String groupIdPath = dependencyDescriptor.getGroupId().replace('.', File.separatorChar);
-        final String artfactIdPath = dependencyDescriptor.getArtifactId().replace('.', File.separatorChar);
+        //final String artfactIdPath = dependencyDescriptor.getArtifactId().replace('.', File.separatorChar);
+        final String artfactIdPath = dependencyDescriptor.getArtifactId();
         final String artifactDirectoryPath = localRepository + File.separatorChar + groupIdPath + File.separatorChar + artfactIdPath + File.separatorChar + dependencyDescriptor.getVersion();
         List<String> groupPathSegments = Splitter.on(".").splitToList(dependencyDescriptor.getGroupId());
         List<String> artfactPathSegments = Splitter.on(".").splitToList(dependencyDescriptor.getArtifactId());
